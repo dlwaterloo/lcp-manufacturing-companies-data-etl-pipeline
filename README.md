@@ -106,4 +106,3 @@ The script generates an enriched Excel file with additional columns including:
 
 ## License
 
-[Add your license information here]
