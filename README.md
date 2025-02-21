@@ -39,10 +39,40 @@ pip install -r requirements.txt
 ```
 
 3. Configure API credentials:
-Update the following variables in `xiniu_api_client.py`:
-```python
-accesskeyid = "your_access_key_id"
-accesskeysecret = "your_access_key_secret"
+   - Copy `.env.template` to `.env`:
+     ```bash
+     cp .env.template .env
+     ```
+   - Edit `.env` and add your API credentials:
+     ```
+     XINIU_ACCESS_KEY_ID=your_access_key_id
+     XINIU_ACCESS_KEY_SECRET=your_access_key_secret
+     METASO_SECRET_KEY=your_metaso_secret_key
+     ```
+   Note: Never commit the `.env` file to version control.
+
+## Project Structure
+
+```
+.
+├── src/
+│   ├── api_clients/      # API client implementations
+│   │   ├── xiniu_api_client.py
+│   │   └── qichacha_api_client.py
+│   ├── utils/           # Utility functions and processing scripts
+│   │   ├── check_excel_sheets.py
+│   │   ├── check_output.py
+│   │   ├── check_pf_list.py
+│   │   └── process_xiaojuren.py
+│   └── tests/          # Test files
+│       ├── metaso_api_test.py
+│       ├── stock_reform_api_test.py
+│       └── test_metaso.py
+├── data/
+│   ├── input/         # Input Excel files
+│   └── output/        # Generated output files
+├── requirements.txt
+└── README.md
 ```
 
 ## Usage

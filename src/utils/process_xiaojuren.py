@@ -4,13 +4,20 @@ import hashlib
 import time
 import requests
 import pandas as pd
-from xiniu_api_client import (
+import sys
+import os
+
+# Add the src directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+from src.api_clients.xiniu_api_client import (
     accesskeyid,
     signature_handler,
-    get_company_info
+    get_company_info,
+    get_company_id
 )
 
-def process_xiaojuren_list(input_file, num_rows=10):
+def process_xiaojuren_list(input_file="data/input/小巨人list copy.xlsx", num_rows=10):
     """
     Process the first num_rows of the 小巨人 Excel file and add company information columns
     """
@@ -95,6 +102,7 @@ def process_xiaojuren_list(input_file, num_rows=10):
         
         # Save the updated Excel file
         output_file = input_file.replace('.xlsx', '_first10_with_info.xlsx')
+        output_file = output_file.replace('data/input/', 'data/output/')
         print(f"\nSaving updated file to: {output_file}")
         df.to_excel(output_file, index=False)
         print("File processing completed successfully!")
@@ -103,5 +111,5 @@ def process_xiaojuren_list(input_file, num_rows=10):
         print(f"Error processing Excel file: {str(e)}")
 
 if __name__ == '__main__':
-    input_file = "小巨人list copy.xlsx"
+    input_file = "data/input/小巨人list copy.xlsx"
     process_xiaojuren_list(input_file)

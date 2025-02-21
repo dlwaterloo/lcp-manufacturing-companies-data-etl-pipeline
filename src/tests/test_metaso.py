@@ -1,5 +1,16 @@
+import sys
+import os
 import requests
 import json
+from dotenv import load_dotenv
+
+# Add the src directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+# Load environment variables
+load_dotenv()
+
+from src.api_clients.xiniu_api_client import query_metaso, query_stock_reform
 
 def test_metaso_api():
     """
@@ -10,7 +21,7 @@ def test_metaso_api():
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
         "Connection": "keep-alive",
-        "secret-key": "d97435d71e8e73f3b9d398cc894f95e4"
+        "secret-key": os.getenv('METASO_SECRET_KEY', 'd97435d71e8e73f3b9d398cc894f95e4')  # Using default for backward compatibility
     }
 
     company_name = "京东方科技集团股份有限公司"

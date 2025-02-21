@@ -5,10 +5,16 @@ import time
 import requests
 import json
 import pandas as pd
+import os
+import dotenv
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
 
-accesskeyid = "lightspeedcp_dev"
-accesskeysecret = "kd5rd6pkzwfiprxrdsvpaibc"
+# Get API credentials from environment variables
+accesskeyid = os.getenv('XINIU_ACCESS_KEY_ID', 'lightspeedcp_dev')  # Using default for backward compatibility
+accesskeysecret = os.getenv('XINIU_ACCESS_KEY_SECRET', 'kd5rd6pkzwfiprxrdsvpaibc')  # Using default for backward compatibility
 
 
 def signature_handler(reqData):
@@ -502,7 +508,7 @@ def query_stock_reform(company_name):
         }
 
 
-def load_peer_funds(file_path="PF Tracked List.xlsx"):
+def load_peer_funds(file_path="data/input/PF Tracked List.xlsx"):
     """
     Load the peer funds from the PF Tracked List
     """
@@ -514,13 +520,13 @@ def load_peer_funds(file_path="PF Tracked List.xlsx"):
         return set()
 
 
-def load_deallog_companies():
+def load_deallog_companies(file_path="data/input/Deallog List.xlsx"):
     """
     Load company names from Deallog List.xlsx
     Returns a set of company names for direct string matching
     """
     try:
-        df = pd.read_excel("Deallog List.xlsx")
+        df = pd.read_excel(file_path)
         # Get company names from first column, remove any leading/trailing whitespace
         company_names = set(name.strip() for name in df.iloc[:, 0].dropna().tolist())
         print(f"Loaded {len(company_names)} companies from deallog list")
@@ -682,6 +688,21 @@ def process_excel_file(input_file):
     print(f"Reading Excel file: {input_file}")
     
     try:
+        # Ensure input file exists
+        if not os.path.exists(input_file):
+            print(f"Error: Input file {input_file} not found")
+            return
+            
+        # Create output file path
+        output_file = input_file.replace('.xlsx', '_with_info.xlsx')
+        if 'data/input/' in input_file:
+            output_file = output_file.replace('data/input/', 'data/output/')
+        else:
+            output_file = os.path.join('data/output', os.path.basename(output_file))
+            
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        
         # Load peer funds
         print("Loading peer funds list...")
         peer_funds = load_peer_funds()
@@ -692,7 +713,6 @@ def process_excel_file(input_file):
         deallog_companies = load_deallog_companies()
         
         # Create Excel writer for output
-        output_file = input_file.replace('.xlsx', '_with_info.xlsx')
         writer = pd.ExcelWriter(output_file, engine='openpyxl')
         
         # Read all sheets
@@ -820,25 +840,26 @@ def test_first_10_rows():
     Test the script with first 10 rows of the first sheet
     """
     try:
-        # Load peer funds
-        print("Loading peer funds list...")
+        # Load peer funds and deallog companies
         peer_funds = load_peer_funds()
-        print(f"Loaded {len(peer_funds)} peer funds")
-        
-        # Load deallog companies
-        print("\nLoading deallog companies list...")
         deallog_companies = load_deallog_companies()
         
+        print("\nProcessing first 10 rows...")
+        
         # Read the first sheet
-        input_file = "1-6批制造业单项冠军 copy.xlsx"
+        input_file = "data/input/1-6批制造业单项冠军 copy.xlsx"
         output_file = input_file.replace('.xlsx', '_first10_with_info.xlsx')
+        output_file = output_file.replace('data/input/', 'data/output/')
         
         # Create Excel writer
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)  # Ensure output directory exists
         writer = pd.ExcelWriter(output_file, engine='openpyxl')
         
-        # Read the sheet
+        # Read first sheet
         df = pd.read_excel(input_file, sheet_name="第一批")
-        df = df.head(10)  # Take only first 10 rows
+        
+        # Take first 10 rows
+        df = df.head(10)
         company_count = len(df)
         print(f"\nProcessing first {company_count} companies from 第一批")
         
@@ -953,7 +974,7 @@ def test_first_10_rows():
 
 def test_api():
     # Process Excel file
-    excel_file = "1-6批制造业单项冠军 copy.xlsx"
+    excel_file = "data/input/1-6批制造业单项冠军 copy.xlsx"
     process_excel_file(excel_file)
 
 def test_specific_companies():
