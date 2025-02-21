@@ -1,8 +1,17 @@
-*.xlsx
-*.xls
+# Python
 __pycache__/
 *.pyc
 .DS_Store
 venv/
 .env
 *.log
+
+# Data files
+data/input/*
+!data/input/.gitkeep
+data/output/*
+!data/output/.gitkeep
+
+# Excel files (in case they're outside data directories)
+*.xlsx
+*.xls
