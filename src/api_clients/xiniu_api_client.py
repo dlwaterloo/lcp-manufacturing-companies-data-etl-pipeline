@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import dotenv
 from dotenv import load_dotenv
+import json
 
 # Load environment variables
 load_dotenv()
@@ -508,27 +509,27 @@ def query_stock_reform(company_name):
         }
 
 
-def load_peer_funds(file_path="data/input/PF Tracked List.xlsx"):
+def load_peer_funds(file_path="data/input/pf_companies.json"):
     """
-    Load the peer funds from the PF Tracked List
+    Load the peer funds from the JSON file
     """
     try:
-        df = pd.read_excel(file_path, header=None)
-        return set(df[0].tolist())  # Convert to set for faster lookups
+        with open(file_path, 'r', encoding='utf-8') as f:
+            peer_funds = set(json.load(f))
+        print(f"Loaded {len(peer_funds)} peer funds")
+        return peer_funds
     except Exception as e:
-        print(f"Error loading peer funds: {e}")
+        print(f"Error loading peer funds list: {str(e)}")
         return set()
 
-
-def load_deallog_companies(file_path="data/input/Deallog List.xlsx"):
+def load_deallog_companies(file_path="data/input/deallog_companies.json"):
     """
-    Load company names from Deallog List.xlsx
+    Load company names from deallog companies JSON file
     Returns a set of company names for direct string matching
     """
     try:
-        df = pd.read_excel(file_path)
-        # Get company names from first column, remove any leading/trailing whitespace
-        company_names = set(name.strip() for name in df.iloc[:, 0].dropna().tolist())
+        with open(file_path, 'r', encoding='utf-8') as f:
+            company_names = set(json.load(f))
         print(f"Loaded {len(company_names)} companies from deallog list")
         return company_names
     except Exception as e:

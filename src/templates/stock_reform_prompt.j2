@@ -1,0 +1,29 @@
+{# Stock Reform Information Query Template
+   Variables:
+   - company_name: The name of the company to query
+   Expected Response Format:
+   {
+     "是否是股份公司": "是/不是/NULL",
+     "股改时间": "具体时间或NULL"
+   }
+#}
+
+请严格按照以下要求回答问题：
+
+1. 关于{{ company_name }}的股份制改革信息：
+
+   - 公司性质：{% raw %}{{ 必须是"是"、"不是"或"NULL"中的一个 }}{% endraw %}
+   - 股改时间：{% raw %}{{ 如果是股份公司，请提供具体时间；如不确定或不适用，请回答"NULL" }}{% endraw %}
+
+2. 回答格式要求：
+   - 必须使用JSON格式
+   - 必须包含且仅包含两个字段："是否是股份公司"和"股改时间"
+   - 字段值必须用双引号包围
+   - 不要包含任何额外的解释或标记
+   - 日期格式：YYYY-MM-DD（如果只知道年份，则填写年份-01-01）
+
+示例回答格式：
+{
+  "是否是股份公司": "是/不是/NULL",
+  "股改时间": "2020-01-01"
+}

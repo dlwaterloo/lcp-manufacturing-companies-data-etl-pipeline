@@ -1,0 +1,32 @@
+{# Parent Company Information Query Template
+   Variables:
+   - company_name: The name of the company to query
+   Expected Response Format:
+   {
+     "母公司名称": "具体名称或NULL",
+     "母公司是否上市": "是/不是/NULL"
+   }
+   Note: If 母公司名称 is NULL, then 母公司是否上市 must also be NULL
+#}
+
+请严格按照以下要求回答问题：
+
+1. 关于{{ company_name }}的母公司信息：
+
+   - 母公司名称：{% raw %}{{ 如果不确定或没有，请回答"NULL" }}{% endraw %}
+   - 母公司上市状态：
+     * 如果母公司名称为"NULL"，此项也必须为"NULL"
+     * 如果有母公司名称，则必须是"是"、"不是"或"NULL"中的一个
+
+2. 回答格式要求：
+   - 必须使用JSON格式
+   - 必须包含且仅包含两个字段："母公司名称"和"母公司是否上市"
+   - 字段值必须用双引号包围
+   - 不要包含任何额外的解释或标记
+   - 如果母公司名称为"NULL"，上市状态也必须为"NULL"
+
+示例回答格式：
+{
+  "母公司名称": "具体名称或NULL",
+  "母公司是否上市": "是/不是/NULL"
+}
