@@ -14,8 +14,13 @@ import json
 load_dotenv()
 
 # Get API credentials from environment variables
-accesskeyid = os.getenv('XINIU_ACCESS_KEY_ID', 'lightspeedcp_dev')  # Using default for backward compatibility
-accesskeysecret = os.getenv('XINIU_ACCESS_KEY_SECRET', 'kd5rd6pkzwfiprxrdsvpaibc')  # Using default for backward compatibility
+accesskeyid = os.getenv('XINIU_ACCESS_KEY_ID')
+if not accesskeyid:
+    raise ValueError("XINIU_ACCESS_KEY_ID environment variable is not set")
+
+accesskeysecret = os.getenv('XINIU_ACCESS_KEY_SECRET')
+if not accesskeysecret:
+    raise ValueError("XINIU_ACCESS_KEY_SECRET environment variable is not set")
 
 
 def signature_handler(reqData):

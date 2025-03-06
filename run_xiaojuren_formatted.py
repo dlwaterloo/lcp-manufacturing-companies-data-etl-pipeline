@@ -39,11 +39,17 @@ async def query_metaso_async(company_name, session):
         dict: Dictionary containing parent company name and listing status
     """
     url = "https://metaso.cn/api/open/search"
+    
+    # Get API key from environment variable
+    metaso_key = os.getenv('METASO_SECRET_KEY')
+    if not metaso_key:
+        raise ValueError("METASO_SECRET_KEY environment variable is not set")
+        
     headers = {
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
         "Connection": "keep-alive",
-        "secret-key": "d97435d71e8e73f3b9d398cc894f95e4"
+        "secret-key": metaso_key
     }
 
     try:
@@ -115,11 +121,17 @@ async def query_stock_reform_async(company_name, session):
         dict: Dictionary containing whether it's a joint-stock company and its stock reform time
     """
     url = "https://metaso.cn/api/open/search"
+    
+    # Get API key from environment variable
+    metaso_key = os.getenv('METASO_SECRET_KEY')
+    if not metaso_key:
+        raise ValueError("METASO_SECRET_KEY environment variable is not set")
+        
     headers = {
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
         "Connection": "keep-alive",
-        "secret-key": "d97435d71e8e73f3b9d398cc894f95e4"
+        "secret-key": metaso_key
     }
 
     try:
@@ -223,7 +235,7 @@ async def process_company_async(company_name, session):
     try:
         # Create all API tasks at once
         tasks = [
-            get_xiniu_info_async(company_name),  # Changed back to correct function
+            get_xiniu_info_async(company_name),
             query_metaso_async(company_name, session),
             query_stock_reform_async(company_name, session)
         ]
@@ -236,38 +248,16 @@ async def process_company_async(company_name, session):
         print(f"Error processing company {company_name}: {e}")
         return None, None, None
 
-async def process_company_batch_async(companies, session, df, peer_funds, deallog_companies):
+async def process_single_company(idx, company_name, session, df, peer_funds, deallog_companies):
     """
-    Process a batch of companies in parallel
+    Process a single company and update the DataFrame
     """
-    batch_start_time = time.time()
-    print(f"\nStarting parallel processing of {len(companies)} companies at {datetime.now().strftime('%H:%M:%S')}")
-    
-    # Create all tasks at once
-    tasks = []
-    for idx, company_name in companies:
-        print(f"Queueing company: {company_name}")
-        
+    try:
         # Check if company is in deallog list (this is fast, so we do it synchronously)
         df.at[idx, '已在Deal List'] = xiniu_api_client.check_in_deallog(company_name, deallog_companies)
         
-        # Create task for company processing
-        tasks.append((idx, company_name, process_company_async(company_name, session)))
-    
-    print(f"Starting parallel API calls for all {len(companies)} companies...")
-    api_start_time = time.time()
-    
-    # Wait for all companies to be processed
-    results = await asyncio.gather(*(task[2] for task in tasks))
-    
-    api_end_time = time.time()
-    api_duration = api_end_time - api_start_time
-    print(f"\nAll API calls completed in {api_duration:.2f} seconds")
-    
-    # Update DataFrame with company information
-    update_start_time = time.time()
-    for (idx, company_name, _), result in zip(tasks, results):
-        company_info, parent_info, stock_info = result
+        # Process company with parallel API calls
+        company_info, parent_info, stock_info = await process_company_async(company_name, session)
         
         if company_info:
             # Update DataFrame with company information
@@ -276,7 +266,6 @@ async def process_company_batch_async(companies, session, df, peer_funds, deallo
             
             # Get funding history
             funding_history = company_info.get('融资历史', [])
-            # Format the funding history in a structured way
             df.at[idx, '融资历史'] = format_funding_history(funding_history)
             
             # Find peer fund intersection
@@ -314,57 +303,49 @@ async def process_company_batch_async(companies, session, df, peer_funds, deallo
             df.at[idx, '股改时间'] = stock_info.get('股改时间', 'NULL')
             
             print(f"Successfully processed company: {company_name}")
+            return True
         else:
             print(f"Failed to process company: {company_name}")
-    
-    update_end_time = time.time()
-    update_duration = update_end_time - update_start_time
-    batch_duration = update_end_time - batch_start_time
-    
-    print(f"\nBatch processing statistics:")
-    print(f"API calls duration: {api_duration:.2f} seconds")
-    print(f"DataFrame update duration: {update_duration:.2f} seconds")
-    print(f"Total batch duration: {batch_duration:.2f} seconds")
-    print(f"Average time per company: {batch_duration/len(companies):.2f} seconds")
+            return False
+            
+    except Exception as e:
+        print(f"Error processing company {company_name}: {e}")
+        return False
 
 async def process_sheet_async(sheet_name, df, peer_funds, deallog_companies, session):
     """
-    Process a single sheet asynchronously
-    
-    Args:
-        sheet_name (str): Name of the sheet being processed
-        df (pd.DataFrame): DataFrame containing the sheet data
-        peer_funds (set): Set of peer fund names
-        deallog_companies (set): Set of deallog company names
-        session (aiohttp.ClientSession): Async HTTP session
-    Returns:
-        tuple: (sheet_name, processed_df)
+    Process a single sheet asynchronously, one row at a time
     """
     start_time = time.time()
     print(f"\nProcessing sheet: {sheet_name}")
     
-    # Take the top 500 rows
-    df = df.head(500)
-    total_companies = len(df)
-    print(f"Processing {total_companies} companies in {sheet_name}")
+    # Define row ranges for each sheet
+    sheet_ranges = {
+        '第一批': (238, 248),    # Rows 239-248 (0-based indexing)
+        '第二批': (1694, 1744),  # Rows 1695-1744
+        '第三批': (2881, 2931),  # Rows 2882-2931
+        '第四批': (3500, 4357),  # Rows 3501-4357
+        '第五批': (3500, 3671),  # Rows 3501-3671
+        '第六批': (2962, 3012),  # Rows 2963-3012
+    }
     
-    # Initialize new columns for company information
-    df['成立时间'] = ''
-    df['是否上市'] = ''
-    df['母公司'] = ''
-    df['母公司是否上市'] = ''
-    df['融资历史'] = ''
-    df['Peer Fund'] = ''
-    df['某一年融资超2次'] = ''
-    df['单轮3家以上fund'] = ''
-    df['2家以上Peer Fund'] = ''
-    df['已在Deal List'] = ''
-    df['行业属性'] = ''
-    df['赛道名称'] = ''
-    df['产品/公司介绍'] = ''
-    df['创始人信息'] = ''
-    df['是否是股份公司'] = ''
-    df['股改时间'] = ''
+    if sheet_name not in sheet_ranges:
+        print(f"Warning: No row range defined for sheet {sheet_name}")
+        return sheet_name, df
+        
+    start_row, end_row = sheet_ranges[sheet_name]
+    total_rows = end_row - start_row
+    
+    print(f"Processing rows {start_row+1}-{end_row} ({total_rows} companies) in {sheet_name}")
+    
+    # Initialize new columns in the original DataFrame if they don't exist
+    new_columns = ['成立时间', '是否上市', '母公司', '母公司是否上市', '融资历史', 'Peer Fund',
+                  '某一年融资超2次', '单轮3家以上fund', '2家以上Peer Fund', '已在Deal List',
+                  '行业属性', '赛道名称', '产品/公司介绍', '创始人信息', '是否是股份公司', '股改时间']
+    
+    for col in new_columns:
+        if col not in df.columns:
+            df[col] = ''
     
     # Find company name column
     company_name_column = '示范企业名称' if '示范企业名称' in df.columns else '企业名称'
@@ -380,33 +361,28 @@ async def process_sheet_async(sheet_name, df, peer_funds, deallog_companies, ses
             print(f"Error: Could not find a suitable company name column in sheet {sheet_name}")
             return sheet_name, df
     
-    # Process companies in batches of 20
-    batch_size = 20
-    total_batches = (total_companies + batch_size - 1) // batch_size
-    
-    for batch_num in range(total_batches):
-        batch_start = batch_num * batch_size
-        batch_end = min(batch_start + batch_size, total_companies)
-        print(f"\nProcessing batch {batch_num + 1}/{total_batches} (companies {batch_start+1}-{batch_end})")
+    # Process companies one by one
+    successful = 0
+    processed = 0
+    for idx in range(start_row, end_row):  
+        company_name = df.iloc[idx][company_name_column]
+        current_row = idx + 1  # Convert to 1-based indexing for display
+        current_count = processed + 1
+        print(f"\nProcessing company {current_count}/{total_rows} (Row {current_row}): {company_name}")
         
-        # Create batch of companies
-        batch_companies = []
-        for idx in range(batch_start, batch_end):
-            company_name = df.iloc[idx][company_name_column]
-            batch_companies.append((idx, company_name))
-        
-        # Process batch
-        await process_company_batch_async(batch_companies, session, df, peer_funds, deallog_companies)
+        if await process_single_company(idx, company_name, session, df, peer_funds, deallog_companies):
+            successful += 1
+        processed += 1
         
         # Print progress
-        processed = batch_end
-        remaining = total_companies - processed
         elapsed_time = time.time() - start_time
         avg_time_per_company = elapsed_time / processed
-        estimated_remaining = remaining * (elapsed_time / processed) if processed > 0 else 0
+        remaining = total_rows - processed
+        estimated_remaining = remaining * avg_time_per_company
         
         print(f"\nProgress update:")
-        print(f"Processed: {processed}/{total_companies} companies ({processed/total_companies*100:.1f}%)")
+        print(f"Processed: {processed}/{total_rows} companies ({processed/total_rows*100:.1f}%)")
+        print(f"Successfully processed: {successful} companies")
         print(f"Average time per company: {avg_time_per_company:.2f} seconds")
         print(f"Estimated time remaining: {estimated_remaining/60:.1f} minutes")
     
@@ -420,7 +396,8 @@ async def process_sheet_async(sheet_name, df, peer_funds, deallog_companies, ses
     
     end_time = time.time()
     duration = end_time - start_time
-    print(f"\nFinished processing sheet {sheet_name} in {duration/60:.1f} minutes")
+    print(f"\nFinished processing rows {start_row+1}-{end_row} in sheet {sheet_name} in {duration/60:.1f} minutes")
+    print(f"Successfully processed {successful}/{total_rows} companies")
     return sheet_name, df
 
 async def process_without_metaso(input_file):

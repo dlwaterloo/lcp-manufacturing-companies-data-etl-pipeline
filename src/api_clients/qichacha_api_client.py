@@ -2,6 +2,8 @@ import hashlib
 import time
 import requests
 import json
+import os
+from dotenv import load_dotenv
 
 class QichachaClient:
     def __init__(self, app_key, secret_key):
@@ -153,11 +155,18 @@ def find_stock_reform_date(data):
     return None
 
 def test_api():
-    # Initialize client with your credentials
-    client = QichachaClient(
-        app_key="2fc4900375c74c23a945eafca459b4c8",
-        secret_key="39F2B72A213FD68BC44D771BA11DA978"
-    )
+    # Load environment variables
+    load_dotenv()
+    
+    # Initialize client with credentials from environment variables
+    app_key = os.getenv('QICHACHA_APP_KEY')
+    secret_key = os.getenv('QICHACHA_SECRET_KEY')
+    
+    if not app_key or not secret_key:
+        print("Error: QICHACHA_APP_KEY and QICHACHA_SECRET_KEY environment variables must be set")
+        return
+        
+    client = QichachaClient(app_key=app_key, secret_key=secret_key)
     
     # Test with a company name
     test_company = "荣耀终端股份有限公司"
